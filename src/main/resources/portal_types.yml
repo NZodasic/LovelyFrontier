@@ -1,0 +1,21 @@
+portal_types:
+  standard_portal:
+    trigger_item: EYE_OF_ENDER
+    pattern:
+      - "OBS"
+      - "B B"
+      - "SBO"
+    keys:
+      O: OBSIDIAN
+      B: NETHER_BRICK
+      S: SMOOTH_STONE
+    action: OPEN_MENU
+  random_portal:
+    trigger_item: COMPASS
+    pattern:
+      - "SSS"
+      - "S S"
+      - "SSS"
+    keys:
+      S: STONE_BRICKS
+    action: RANDOM_DUNGEON

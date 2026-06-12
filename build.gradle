@@ -1,0 +1,69 @@
+plugins {
+    id 'java'
+    id 'com.gradleup.shadow' version '8.3.0'
+}
+
+group = 'me.lovelyfrontier'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+    maven { url = 'https://maven.enginehub.org/repo/' }
+    maven { url = 'https://nexus.phoenixdevt.fr/repository/maven-public/' }
+    maven { url = 'https://mvn.lumine.io/repository/maven-public/' }
+    maven { url = 'https://repo.onarandombox.com/content/groups/public/' }
+    maven { url = 'https://jitpack.io' }
+}
+
+dependencies {
+    // Paper API
+    compileOnly 'io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT'
+
+    // InventoryFramework (IF)
+    implementation 'com.github.stefvanschie.inventoryframework:IF:0.10.14'
+
+    // Database Connection Pool and Drivers
+    implementation 'com.zaxxer:HikariCP:5.1.0'
+    implementation 'com.mysql:mysql-connector-j:8.3.0'
+    implementation 'org.xerial:sqlite-jdbc:3.45.1.0'
+
+    // WorldEdit
+    compileOnly 'com.sk89q.worldedit:worldedit-bukkit:7.3.0'
+
+    // Multiverse-Core
+    compileOnly 'org.mvplugins.multiverse.core:multiverse-core:5.6.1'
+
+    // MMOCore API
+    compileOnly 'net.Indyuce:MMOCore-API:1.12-SNAPSHOT'
+
+    // Vault API
+    compileOnly 'com.github.MilkBowl:VaultAPI:1.7'
+
+    // MythicMobs API
+    compileOnly 'io.lumine:Mythic-Dist:5.6.1'
+
+    // MythicLib API (required for MMOCore)
+    compileOnly 'io.lumine:MythicLib-dist:1.6.2-SNAPSHOT'
+}
+
+shadowJar {
+    // Relocate libraries to prevent classpath conflicts
+    relocate 'com.github.stefvanschie.inventoryframework', 'me.lovelyfrontier.inventoryframework'
+    relocate 'com.zaxxer.hikari', 'me.lovelyfrontier.hikari'
+    relocate 'com.mysql', 'me.lovelyfrontier.mysql'
+    
+    archiveClassifier.set('')
+}
+
+tasks.build.dependsOn shadowJar
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+}

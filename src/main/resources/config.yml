@@ -1,0 +1,103 @@
+# Cấu hình Nhóm (Party)
+party:
+  # Số lượng thành viên tối thiểu để vào phụ bản (1 = cho phép đi đơn lẻ)
+  min_size: 1
+  # Cho phép đi phụ bản một mình (solo)
+  allow_solo: true
+  # Thời gian chờ xác nhận vào phụ bản của cả nhóm (giây)
+  confirm_timeout_seconds: 180
+  # Thời gian chờ bầu chọn độ khó (giây)
+  vote_timeout_seconds: 60
+  # Hệ số quy đổi phần thưởng theo số lượng người chơi
+  reward_scaling:
+    solo: 0.70  # Đi đơn lẻ: nhận 70% giá trị phần thưởng
+    duo: 1.00   # Nhóm 2 người: nhận 100% giá trị phần thưởng
+    trio: 1.10  # Nhóm 3 người: nhận 110% giá trị phần thưởng
+
+# Cấu hình Vé Phụ Bản (Tickets)
+tickets:
+  # Trừ vé ngay khi bắt đầu dịch chuyển vào phụ bản
+  consume_on_entry: true
+
+# Cấu hình Cửa Hàng Vé (Tickets Shop)
+tickets_shop:
+  # Giá vé cơ bản
+  base_price: 1000.0
+  # Hệ số nhân giá vé cho từng độ khó phụ bản
+  multipliers:
+    very_easy: 0.8
+    easy: 1.0
+    normal: 1.3
+    hard: 1.7
+    very_hard: 2.5
+
+# Cấu hình Thực Thể Phụ Bản (Instances)
+instance:
+  # Thời gian chờ ngắt kết nối (giây) - cho phép người chơi kết nối lại phụ bản trong vòng 5 phút
+  disconnect_grace_seconds: 300
+  # Thời gian chờ tải phụ bản tối đa (giây) - phòng trường hợp lỗi tạo thế giới
+  loading_timeout_seconds: 60
+  # Số lượng phụ bản hoạt động tối đa cùng lúc trên máy chủ
+  max_active_instances: 50
+
+# Cấu hình Cuộn Giấy Cổng Cá Nhân (Portal Scroll)
+portal_scroll:
+  # Số lần sử dụng cuộn giấy tối đa trong ngày
+  daily_limit: 3
+  # Số lượng cuộn giấy tối đa người chơi có thể giữ trong túi đồ
+  max_hold: 5
+  # Thời gian hồi giữa mỗi lần sử dụng (giây)
+  cooldown_between_uses_seconds: 300
+
+# Hệ thống Chống Trục Lợi (Anti-Abuse)
+anti_abuse:
+  # Thời gian chơi tối thiểu yêu cầu trước khi mua/sử dụng vé hoặc nhận quà (hỗ trợ s, m, h, d)
+  min_playtime: "2h"
+  # Số lượng tài khoản tối đa được phép truy cập từ cùng một địa chỉ IP
+  max_accounts_per_ip: 3
+
+# Cấu hình Vé Miễn Phí Hàng Tuần (Weekly Free Tickets)
+weekly_free_tickets:
+  # Bật/tắt nhận vé miễn phí hàng tuần
+  enabled: true
+  # Số lượng vé miễn phí nhận mỗi tuần
+  amount: 1
+
+# Cấu hình Lọc Lệnh trong Phụ Bản (Command Filter)
+command_filter:
+  # Lệnh được phép sử dụng trong phụ bản (whitelist)
+  allowed_commands:
+    - "lf"
+    - "lfa"
+    - "party"
+    - "me"
+    - "g"
+    - "msg"
+
+# Tự động tạo Cổng Phụ Bản trong Thế Giới (World Dungeon Spawn)
+world_dungeon_spawn:
+  # Bật/tắt tính năng tự động tạo cổng phụ bản ngẫu nhiên trong thế giới
+  enabled: true
+  # Chế độ thông báo khi cổng xuất hiện: LOCAL (gần cổng) / GLOBAL (toàn máy chủ) / BOTH (cả hai)
+  notification:
+    mode: BOTH
+  # Tần suất kiểm tra để tạo cổng mới (giây)
+  check_interval_seconds: 300
+  # Thời gian tồn tại của cổng trước khi tự biến mất (giây)
+  portal_lifetime_seconds: 600
+
+# Cấu hình Cơ sở Dữ liệu (Database)
+database:
+  # Loại cơ sở dữ liệu sử dụng: sqlite hoặc mysql
+  type: sqlite
+  # Cấu hình MySQL (chỉ sử dụng khi chọn type: mysql)
+  mysql:
+    host: localhost
+    port: 3306
+    database: lovelyfrontier
+    username: root
+    password: ''
+    pool:
+      max_size: 10
+      idle_timeout_ms: 600000
+      connection_timeout_ms: 30000

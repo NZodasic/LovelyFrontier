@@ -1,0 +1,113 @@
+name: LovelyFrontier
+version: 1.0-SNAPSHOT
+main: me.lovelyfrontier.LovelyFrontierPlugin
+api-version: '1.21'
+description: Tiện ích phụ bản nâng cao dựa trên thực thể.
+depend:
+  - Multiverse-Core
+  - MMOCore
+  - Vault
+softdepend:
+  - MythicMobs
+  - WorldEdit
+
+commands:
+  lf:
+    description: Trung tâm lệnh người chơi LovelyFrontier
+    permission: lf.use
+    usage: /lf [subcommand]
+  lfa:
+    description: Các lệnh quản trị viên LovelyFrontier
+    permission: lf.admin
+    usage: /lfa [subcommand]
+
+permissions:
+  lf.*:
+    description: Tất cả quyền LovelyFrontier
+    children:
+      lf.use: true
+      lf.shop: true
+      lf.queue: true
+      lf.spectate: true
+      lf.gift: true
+      lf.scroll.use: true
+      lf.scroll.craft: true
+      lf.admin: true
+
+  lf.use:
+    description: Quyền cơ bản người chơi cho các lệnh /lf
+    default: true
+
+  lf.shop:
+    description: Truy cập /lf shop để mua vé
+    default: true
+
+  lf.queue:
+    description: Tham gia/rời hàng chờ ghép trận
+    default: true
+
+  lf.spectate:
+    description: Theo dõi thực thể phụ bản của bạn bè
+    default: op
+
+  lf.gift:
+    description: Tặng vé cho người chơi khác
+    default: true
+
+  lf.scroll.use:
+    description: Sử dụng Cuộn Giấy Cổng Cá Nhân
+    default: true
+
+  lf.scroll.craft:
+    description: Chế tạo Cuộn Giấy Cổng (công thức)
+    default: true
+
+  lf.admin:
+    description: Quyền truy cập quản trị viên đầy đủ
+    default: op
+    children:
+      lf.admin.edit: true
+      lf.admin.shop: true
+      lf.admin.reload: true
+      lf.admin.instances: true
+      lf.admin.give: true
+      lf.admin.wand: true
+      lf.admin.setspawn: true
+      lf.admin.forceclose: true
+      lf.admin.worldspawn.manage: true
+
+  lf.admin.edit:
+    description: Truy cập giao diện chỉnh sửa /lfa edit
+    default: op
+
+  lf.admin.shop:
+    description: Truy cập giao diện chỉnh sửa cửa hàng /lfa shop edit
+    default: op
+
+  lf.admin.reload:
+    description: Tải lại các tệp cấu hình
+    default: op
+
+  lf.admin.instances:
+    description: Xem/quản lý các thực thể phụ bản đang hoạt động
+    default: op
+
+  lf.admin.give:
+    description: Phát vé cho người chơi
+    default: op
+
+  lf.admin.wand:
+    description: Sử dụng Gậy Loot để gắn thẻ rương
+    default: op
+
+  lf.admin.setspawn:
+    description: Đặt điểm xuất phát của phụ bản
+    default: op
+
+  lf.admin.forceclose:
+    description: Bắt buộc đóng một thực thể phụ bản
+    default: op
+
+  lf.admin.worldspawn.manage:
+    description: Bắt buộc tạo/hủy cổng thế giới
+    default: op

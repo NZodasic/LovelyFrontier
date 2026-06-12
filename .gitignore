@@ -1,0 +1,53 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# Maven/legacy build output
+target/
+
+# Java artifacts
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# IDE/editor files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Local runtime/server data
+run/
+server/
+minecraft/
+plugins/
+world/
+world_nether/
+world_the_end/
+
+# Plugin runtime data
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Keep Gradle wrapper files trackable if generated later
+!gradle/wrapper/gradle-wrapper.jar

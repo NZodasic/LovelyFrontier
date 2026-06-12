@@ -1,0 +1,11 @@
+id: ancient_ruins
+name: "Tàn Tích Cổ Đại"
+schematic_path: "ancient_ruins.schem"
+min_party_size: 1
+time_limit_seconds: 1800
+spawn:
+  x: 0.5
+  y: 65.0
+  z: 0.5
+  yaw: 0.0
+  pitch: 0.0
