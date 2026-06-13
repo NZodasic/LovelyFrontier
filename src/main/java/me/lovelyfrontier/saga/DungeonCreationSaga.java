@@ -217,7 +217,7 @@ public class DungeonCreationSaga {
                                 try (com.sk89q.worldedit.EditSession editSession = com.sk89q.worldedit.WorldEdit.getInstance().newEditSession(worldEditWorld)) {
                                     com.sk89q.worldedit.function.operation.Operation operation = new com.sk89q.worldedit.session.ClipboardHolder(clipboard)
                                             .createPaste(editSession)
-                                            .to(com.sk89q.worldedit.math.BlockVector3.at(0, 64, 0))
+                                            .to(com.sk89q.worldedit.math.BlockVector3.at(config.getPasteOriginX(), config.getPasteOriginY(), config.getPasteOriginZ()))
                                             .ignoreAirBlocks(false)
                                             .build();
                                     com.sk89q.worldedit.function.operation.Operations.complete(operation);

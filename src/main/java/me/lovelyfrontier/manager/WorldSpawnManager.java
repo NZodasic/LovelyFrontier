@@ -19,6 +19,7 @@ public class WorldSpawnManager {
 
     private final LovelyFrontierPlugin plugin;
     private final Map<String, PortalRepository.DbPortal> activeWorldPortals = new ConcurrentHashMap<>();
+    private final Set<String> despawningPortals = ConcurrentHashMap.newKeySet();
     private BukkitTask spawnTask;
     private BukkitTask expiryTask;
 
@@ -294,13 +295,20 @@ public class WorldSpawnManager {
      * Despawns a portal by removing its blocks, deleting from DB and memory.
      */
     public void despawnPortal(String portalId, boolean wasExpired) {
+        if (!despawningPortals.add(portalId)) return; // already being despawned
         PortalRepository.DbPortal portal = activeWorldPortals.remove(portalId);
-        if (portal == null) return;
+        if (portal == null) {
+            despawningPortals.remove(portalId);
+            return;
+        }
 
         // Perform block removal on main thread
         Bukkit.getScheduler().runTask(plugin, () -> {
             World world = Bukkit.getWorld(portal.worldName);
-            if (world == null) return;
+            if (world == null) {
+                despawningPortals.remove(portalId);
+                return;
+            }
 
             int cx = (int) portal.x;
             int cy = (int) portal.y;
@@ -310,12 +318,19 @@ public class WorldSpawnManager {
 
             // Delete from database
             plugin.getPortalRepository().deletePortal(portalId).thenAccept(deleted -> {
-                if (deleted && wasExpired) {
-                    plugin.getLogger().info("World portal " + portalId + " has expired and was despawned.");
-                    DungeonConfig dungeon = plugin.getDungeonManager().getDungeon(portal.dungeonId);
-                    String dungeonName = dungeon != null ? dungeon.getName() : portal.dungeonId;
-                    Bukkit.getScheduler().runTask(plugin, () -> notifyPlayersOfExpiration(portal, dungeonName));
+                try {
+                    if (deleted && wasExpired) {
+                        plugin.getLogger().info("World portal " + portalId + " has expired and was despawned.");
+                        DungeonConfig dungeon = plugin.getDungeonManager().getDungeon(portal.dungeonId);
+                        String dungeonName = dungeon != null ? dungeon.getName() : portal.dungeonId;
+                        Bukkit.getScheduler().runTask(plugin, () -> notifyPlayersOfExpiration(portal, dungeonName));
+                    }
+                } finally {
+                    despawningPortals.remove(portalId);
                 }
+            }).exceptionally(ex -> {
+                despawningPortals.remove(portalId);
+                return null;
             });
         });
     }

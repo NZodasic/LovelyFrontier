@@ -55,6 +55,9 @@ public class DungeonManager {
 
                 DungeonConfig dungeon = new DungeonConfig(id, name, schematicPath, minPartySize, timeLimit,
                         spawnX, spawnY, spawnZ, spawnYaw, spawnPitch);
+                dungeon.setPasteOriginX(config.getInt("paste_origin.x", 0));
+                dungeon.setPasteOriginY(config.getInt("paste_origin.y", 4));
+                dungeon.setPasteOriginZ(config.getInt("paste_origin.z", 0));
                 dungeon.setConfigFile(file);
                 dungeons.put(id, dungeon);
                 

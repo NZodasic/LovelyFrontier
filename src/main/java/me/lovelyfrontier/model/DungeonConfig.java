@@ -64,4 +64,18 @@ public class DungeonConfig {
 
     public float getSpawnPitch() { return spawnPitch; }
     public void setSpawnPitch(float spawnPitch) { this.spawnPitch = spawnPitch; }
+
+    // Paste origin coordinates (default to 0, 4, 0 for flat worlds)
+    private int pasteOriginX = 0;
+    private int pasteOriginY = 4;
+    private int pasteOriginZ = 0;
+
+    public int getPasteOriginX() { return pasteOriginX; }
+    public void setPasteOriginX(int pasteOriginX) { this.pasteOriginX = pasteOriginX; }
+
+    public int getPasteOriginY() { return pasteOriginY; }
+    public void setPasteOriginY(int pasteOriginY) { this.pasteOriginY = pasteOriginY; }
+
+    public int getPasteOriginZ() { return pasteOriginZ; }
+    public void setPasteOriginZ(int pasteOriginZ) { this.pasteOriginZ = pasteOriginZ; }
 }

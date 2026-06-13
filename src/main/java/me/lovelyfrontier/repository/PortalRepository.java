@@ -135,21 +135,23 @@ public class PortalRepository {
     public CompletableFuture<List<DbPortal>> getActivePortals() {
         return CompletableFuture.supplyAsync(() -> {
             List<DbPortal> list = new ArrayList<>();
-            String sql = "SELECT * FROM lf_world_portals";
+            String sql = "SELECT * FROM lf_world_portals WHERE expires_at > ?";
             try (Connection conn = databaseManager.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(sql);
-                 ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    list.add(new DbPortal(
-                            rs.getString("portal_id"),
-                            rs.getString("dungeon_id"),
-                            rs.getString("world_name"),
-                            rs.getDouble("x"),
-                            rs.getDouble("y"),
-                            rs.getDouble("z"),
-                            rs.getString("locked_by"),
-                            rs.getTimestamp("expires_at").getTime()
-                    ));
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setTimestamp(1, new Timestamp(System.currentTimeMillis()));
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        list.add(new DbPortal(
+                                rs.getString("portal_id"),
+                                rs.getString("dungeon_id"),
+                                rs.getString("world_name"),
+                                rs.getDouble("x"),
+                                rs.getDouble("y"),
+                                rs.getDouble("z"),
+                                rs.getString("locked_by"),
+                                rs.getTimestamp("expires_at").getTime()
+                        ));
+                    }
                 }
             } catch (SQLException e) {
                 plugin.getLogger().severe("Error loading active portals from DB: " + e.getMessage());

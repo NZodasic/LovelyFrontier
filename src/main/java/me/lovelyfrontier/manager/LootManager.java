@@ -82,42 +82,48 @@ public class LootManager {
         return lootPools.get(poolId);
     }
 
-    /**
-     * Duplicates the chest definitions from TEMPLATE to the active instance.
-     */
     public CompletableFuture<Boolean> cloneChestsToInstance(String dungeonId, String instanceId, String worldName) {
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-                // For each template chest, we need a unique chest_id
-                // To keep it simple, if we copy them, we can select template chests first, then insert new ones
-                String selectSql = "SELECT x, y, z, loot_pool_id FROM lf_dungeon_chests WHERE dungeon_id = ? AND instance_id = 'TEMPLATE'";
-                List<TempChest> temps = new ArrayList<>();
-                try (PreparedStatement selectPs = conn.prepareStatement(selectSql)) {
-                    selectPs.setString(1, dungeonId);
-                    try (ResultSet rs = selectPs.executeQuery()) {
-                        while (rs.next()) {
-                            temps.add(new TempChest(rs.getInt("x"), rs.getInt("y"), rs.getInt("z"), rs.getString("loot_pool_id")));
+                conn.setAutoCommit(false);
+                try {
+                    // For each template chest, we need a unique chest_id
+                    // To keep it simple, if we copy them, we can select template chests first, then insert new ones
+                    String selectSql = "SELECT x, y, z, loot_pool_id FROM lf_dungeon_chests WHERE dungeon_id = ? AND instance_id = 'TEMPLATE'";
+                    List<TempChest> temps = new ArrayList<>();
+                    try (PreparedStatement selectPs = conn.prepareStatement(selectSql)) {
+                        selectPs.setString(1, dungeonId);
+                        try (ResultSet rs = selectPs.executeQuery()) {
+                            while (rs.next()) {
+                                temps.add(new TempChest(rs.getInt("x"), rs.getInt("y"), rs.getInt("z"), rs.getString("loot_pool_id")));
+                            }
                         }
                     }
-                }
 
-                String insertSql = "INSERT INTO lf_dungeon_chests (chest_id, dungeon_id, instance_id, world_name, x, y, z, loot_pool_id, opened) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, FALSE)";
-                try (PreparedStatement insertPs = conn.prepareStatement(insertSql)) {
-                    for (TempChest tc : temps) {
-                        insertPs.setString(1, UUID.randomUUID().toString());
-                        insertPs.setString(2, dungeonId);
-                        insertPs.setString(3, instanceId);
-                        insertPs.setString(4, worldName);
-                        insertPs.setInt(5, tc.x);
-                        insertPs.setInt(6, tc.y);
-                        insertPs.setInt(7, tc.z);
-                        insertPs.setString(8, tc.lootPoolId);
-                        insertPs.addBatch();
+                    String insertSql = "INSERT INTO lf_dungeon_chests (chest_id, dungeon_id, instance_id, world_name, x, y, z, loot_pool_id, opened) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, FALSE)";
+                    try (PreparedStatement insertPs = conn.prepareStatement(insertSql)) {
+                        for (TempChest tc : temps) {
+                            insertPs.setString(1, UUID.randomUUID().toString());
+                            insertPs.setString(2, dungeonId);
+                            insertPs.setString(3, instanceId);
+                            insertPs.setString(4, worldName);
+                            insertPs.setInt(5, tc.x);
+                            insertPs.setInt(6, tc.y);
+                            insertPs.setInt(7, tc.z);
+                            insertPs.setString(8, tc.lootPoolId);
+                            insertPs.addBatch();
+                        }
+                        insertPs.executeBatch();
                     }
-                    insertPs.executeBatch();
+                    conn.commit();
+                    return true;
+                } catch (SQLException e) {
+                    conn.rollback();
+                    throw e;
+                } finally {
+                    conn.setAutoCommit(true);
                 }
-                return true;
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.SEVERE, "Error cloning chests for instance: " + instanceId, e);
                 return false;
@@ -223,44 +229,50 @@ public class LootManager {
             return result;
         }
 
-        // 1. Build weighted item list
-        List<LootPool.LootItem> flatList = new ArrayList<>();
-        for (LootPool.LootItem item : pool.getItems()) {
-            for (int i = 0; i < item.getWeight(); i++) {
-                flatList.add(item);
-            }
-        }
-
-        // 2. Fisher-Yates shuffle
-        Collections.shuffle(flatList);
-
-        // 3. Pick N items (N = fillRate * 27 slots)
+        List<LootPool.LootItem> availableItems = new ArrayList<>(pool.getItems());
         int chestSlots = 27;
         int itemsToPick = (int) Math.ceil(chestSlots * pool.getFillRate());
-        itemsToPick = Math.min(itemsToPick, flatList.size());
 
         double diffMultiplier = getDifficultyMultiplier(difficulty);
         double partyMultiplier = getPartyMultiplier(partySize);
-
         Random rand = new Random();
-        for (int i = 0; i < itemsToPick; i++) {
-            LootPool.LootItem item = flatList.get(i);
-            
-            // 4. Calculate amount
-            int min = item.getMinAmount();
-            int max = item.getMaxAmount();
+
+        while (result.size() < itemsToPick && !availableItems.isEmpty()) {
+            LootPool.LootItem picked = weightedRandom(availableItems, rand);
+            if (picked == null) break;
+            availableItems.remove(picked);
+
+            int min = picked.getMinAmount();
+            int max = picked.getMaxAmount();
             int baseAmount = min + (min == max ? 0 : rand.nextInt(max - min + 1));
             
             // Amount = baseAmount * difficultyMultiplier * partyMultiplier (total scaling)
             int finalAmount = (int) Math.round(baseAmount * diffMultiplier * partyMultiplier);
             finalAmount = Math.max(1, finalAmount); // Minimum 1
 
-            ItemStack stack = item.getItem().clone();
+            ItemStack stack = picked.getItem().clone();
             stack.setAmount(finalAmount);
             result.add(stack);
         }
 
         return result;
+    }
+
+    private LootPool.LootItem weightedRandom(List<LootPool.LootItem> items, Random rand) {
+        int totalWeight = 0;
+        for (LootPool.LootItem item : items) {
+            totalWeight += item.getWeight();
+        }
+        if (totalWeight <= 0) return null;
+        int r = rand.nextInt(totalWeight);
+        int currentWeight = 0;
+        for (LootPool.LootItem item : items) {
+            currentWeight += item.getWeight();
+            if (r < currentWeight) {
+                return item;
+            }
+        }
+        return items.get(items.size() - 1);
     }
 
     private double getDifficultyMultiplier(String difficulty) {

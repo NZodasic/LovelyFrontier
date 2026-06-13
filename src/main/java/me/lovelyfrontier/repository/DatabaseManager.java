@@ -238,7 +238,11 @@ public class DatabaseManager {
 
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
             for (String query : queries) {
-                stmt.execute(query);
+                try {
+                    stmt.execute(query);
+                } catch (SQLException e) {
+                    plugin.getLogger().warning("Table creation warning: " + e.getMessage());
+                }
             }
 
             // Run migration for lf_player_profile if needed

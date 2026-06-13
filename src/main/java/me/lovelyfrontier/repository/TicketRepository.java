@@ -123,17 +123,32 @@ public class TicketRepository {
                         // Re-create the ticket
                         String targetDungeon = plugin.getConfigManager().isTicketsUniversalTicket() ? "UNIVERSAL" : dungeonId;
                         String targetDifficulty = plugin.getConfigManager().isTicketsUniversalTicket() ? "UNIVERSAL" : difficulty;
-                        String insertSql = "INSERT INTO lf_tickets (ticket_id, owner_uuid, dungeon_id, difficulty, quantity) " +
-                            "VALUES (?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE quantity = quantity + 1";
                         if (!databaseManager.isMySQL()) {
-                            insertSql = "INSERT OR REPLACE INTO lf_tickets (ticket_id, owner_uuid, dungeon_id, difficulty, quantity) VALUES (?, ?, ?, ?, 1)";
-                        }
-                        try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
-                            ps.setString(1, ticketId);
-                            ps.setString(2, ownerUuid.toString());
-                            ps.setString(3, targetDungeon);
-                            ps.setString(4, targetDifficulty);
-                            ps.executeUpdate();
+                            String insertSql = "INSERT OR IGNORE INTO lf_tickets (ticket_id, owner_uuid, dungeon_id, difficulty, quantity) VALUES (?, ?, ?, ?, 0)";
+                            try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+                                ps.setString(1, ticketId);
+                                ps.setString(2, ownerUuid.toString());
+                                ps.setString(3, targetDungeon);
+                                ps.setString(4, targetDifficulty);
+                                ps.executeUpdate();
+                            }
+                            String updateSql = "UPDATE lf_tickets SET quantity = quantity + 1 WHERE owner_uuid = ? AND dungeon_id = ? AND difficulty = ?";
+                            try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                                ps.setString(1, ownerUuid.toString());
+                                ps.setString(2, targetDungeon);
+                                ps.setString(3, targetDifficulty);
+                                ps.executeUpdate();
+                            }
+                        } else {
+                            String insertSql = "INSERT INTO lf_tickets (ticket_id, owner_uuid, dungeon_id, difficulty, quantity) " +
+                                "VALUES (?, ?, ?, ?, 1) ON DUPLICATE KEY UPDATE quantity = quantity + 1";
+                            try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+                                ps.setString(1, ticketId);
+                                ps.setString(2, ownerUuid.toString());
+                                ps.setString(3, targetDungeon);
+                                ps.setString(4, targetDifficulty);
+                                ps.executeUpdate();
+                            }
                         }
                     }
                     return true;
