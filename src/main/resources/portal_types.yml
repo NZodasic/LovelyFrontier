@@ -1,6 +1,6 @@
 portal_types:
   standard_portal:
-    trigger_item: EYE_OF_ENDER
+    trigger_item: ENDER_EYE
     pattern:
       - "OBS"
       - "B B"

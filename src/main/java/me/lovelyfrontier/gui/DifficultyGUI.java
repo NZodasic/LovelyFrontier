@@ -57,10 +57,6 @@ public class DifficultyGUI {
             dungeonId = dungeons.get(new Random().nextInt(dungeons.size()));
         } else {
             // OPEN_MENU: open dungeon selection menu first
-            if (portalId != null) {
-                plugin.getInMemoryPortalLock().unlock(portalId);
-                plugin.getPortalRepository().releaseLock(portalId);
-            }
             DungeonListGUI.open(player, portalId);
             return;
         }

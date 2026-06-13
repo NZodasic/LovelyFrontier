@@ -71,6 +71,10 @@ public class DungeonCreationSaga {
             })
             .thenCompose(success -> {
                 if (!success) throw new RuntimeException("Step 7 (Start Timer) failed.");
+                return step8MarkSessionConsumed();
+            })
+            .thenCompose(success -> {
+                if (!success) throw new RuntimeException("Step 8 (Mark Consumed) failed.");
                 return sagaLogRepo.logStep(sagaId, instanceId, "COMPLETE", "SUCCESS", null)
                         .thenApply(v -> {
                             if (session.getPortalId() != null && plugin.getWorldSpawnManager() != null) {
@@ -293,20 +297,37 @@ public class DungeonCreationSaga {
                 }
 
                 DungeonConfig config = plugin.getDungeonManager().getDungeon(session.getDungeonId());
+                if (config == null) {
+                    future.complete(false);
+                    return;
+                }
                 Location spawnLoc = new Location(world, config.getSpawnX(), config.getSpawnY(), config.getSpawnZ(), config.getSpawnYaw(), config.getSpawnPitch());
 
-                // Update active state in DB and in-memory together (Rule R-002)
                 DungeonInstance instance = plugin.getInstanceManager().getInstance(instanceId);
-                instance.setState(InstanceState.ACTIVE);
-                plugin.getInstanceRepository().updateState(instanceId, InstanceState.ACTIVE);
+                if (instance == null) {
+                    future.complete(false);
+                    return;
+                }
 
+                int teleported = 0;
                 for (UUID uuid : session.getPartyMembers()) {
                     Player player = Bukkit.getPlayer(uuid);
                     if (player != null && player.isOnline()) {
-                        player.teleport(spawnLoc);
+                        if (player.teleport(spawnLoc)) {
+                            teleported++;
+                        }
                     }
                 }
-                 future.complete(true);
+
+                if (teleported == 0) {
+                    future.complete(false);
+                    return;
+                }
+
+                // Update active state after at least one player entered the instance.
+                instance.setState(InstanceState.ACTIVE);
+                plugin.getInstanceRepository().updateState(instanceId, InstanceState.ACTIVE);
+                future.complete(true);
             } catch (Throwable e) {
                 plugin.getLogger().log(Level.SEVERE, "[Saga] Teleport error: " + e.getMessage(), e);
                 future.complete(false);
@@ -326,8 +347,13 @@ public class DungeonCreationSaga {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             try {
                 LootManager lootManager = plugin.getLootManager();
-                // Perform async chest generation and populate
-                lootManager.populateInstanceChests(instanceId)
+                lootManager.cloneChestsToInstance(session.getDungeonId(), instanceId, worldName)
+                        .thenCompose(cloned -> {
+                            if (!cloned) {
+                                return CompletableFuture.completedFuture(false);
+                            }
+                            return lootManager.populateInstanceChests(instanceId);
+                        })
                         .thenAccept(success -> future.complete(success))
                         .exceptionally(ex -> {
                             plugin.getLogger().log(Level.SEVERE, "[Saga] Shuffling chests failed: " + ex.getMessage(), ex);
@@ -348,8 +374,18 @@ public class DungeonCreationSaga {
      */
     private CompletableFuture<Boolean> step7StartTimer() {
         DungeonConfig config = plugin.getDungeonManager().getDungeon(session.getDungeonId());
+        if (config == null) {
+            return CompletableFuture.completedFuture(false);
+        }
         plugin.getInstanceManager().startInstanceTimer(instanceId, config.getTimeLimitSeconds());
         return CompletableFuture.completedFuture(true);
+    }
+
+    /**
+     * Step 8: Persist session idempotency state.
+     */
+    private CompletableFuture<Boolean> step8MarkSessionConsumed() {
+        return plugin.getSessionRepository().markConsumed(session.getSessionId(), instanceId);
     }
 
     /**
@@ -382,4 +418,3 @@ public class DungeonCreationSaga {
         folder.delete();
     }
 }
-

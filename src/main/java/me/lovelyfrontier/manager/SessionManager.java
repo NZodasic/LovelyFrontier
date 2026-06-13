@@ -22,6 +22,7 @@ public class SessionManager {
     private final SessionRepository sessionRepository;
     private final Map<String, PlayerSession> activeSessions = new ConcurrentHashMap<>();
     private final Map<String, BukkitTask> sessionTasks = new ConcurrentHashMap<>();
+    private final Set<String> startingSessions = ConcurrentHashMap.newKeySet();
 
     // Guava cache for idempotency key -> creation result (instanceId)
     private final Cache<String, SessionResult> idempotencyCache = CacheBuilder.newBuilder()
@@ -85,6 +86,7 @@ public class SessionManager {
                 return session;
             } else {
                 activeSessions.remove(sessionId);
+                cleanupLocks(session);
                 return null;
             }
         });
@@ -105,6 +107,7 @@ public class SessionManager {
 
     public void removeSession(String sessionId) {
         activeSessions.remove(sessionId);
+        startingSessions.remove(sessionId);
         BukkitTask task = sessionTasks.remove(sessionId);
         if (task != null) {
             task.cancel();
@@ -307,10 +310,18 @@ public class SessionManager {
 
     private CompletableFuture<SessionResult> proceedWithSession(PlayerSession session) {
         String idempotencyKey = session.getIdempotencyKey();
+        if (!startingSessions.add(session.getSessionId())) {
+            SessionResult result = idempotencyCache.getIfPresent(idempotencyKey);
+            if (result != null) {
+                return CompletableFuture.completedFuture(result);
+            }
+            return CompletableFuture.completedFuture(new SessionResult(null, true, "Dungeon creation already in progress."));
+        }
 
         // 1. Check Guava Cache first
         SessionResult cachedResult = idempotencyCache.getIfPresent(idempotencyKey);
         if (cachedResult != null) {
+            startingSessions.remove(session.getSessionId());
             return CompletableFuture.completedFuture(cachedResult);
         }
 
@@ -319,6 +330,7 @@ public class SessionManager {
             if (dbSession != null && dbSession.isTicketConsumed()) {
                 SessionResult result = new SessionResult(dbSession.getInstanceId(), true, "Instance already created (idempotency match).");
                 idempotencyCache.put(idempotencyKey, result);
+                startingSessions.remove(session.getSessionId());
                 return CompletableFuture.completedFuture(result);
             }
 
@@ -329,11 +341,21 @@ public class SessionManager {
                     SessionResult result = new SessionResult(instanceId, true, "Success");
                     idempotencyCache.put(idempotencyKey, result);
                     activeSessions.remove(session.getSessionId());
+                    cleanupLocks(session);
+                    startingSessions.remove(session.getSessionId());
                     return result;
                 } else {
+                    startingSessions.remove(session.getSessionId());
                     return new SessionResult(null, false, "Saga execution failed.");
                 }
+            }).whenComplete((result, throwable) -> {
+                if (throwable != null) {
+                    startingSessions.remove(session.getSessionId());
+                }
             });
+        }).exceptionally(ex -> {
+            startingSessions.remove(session.getSessionId());
+            return new SessionResult(null, false, "Session start failed: " + ex.getMessage());
         });
     }
 

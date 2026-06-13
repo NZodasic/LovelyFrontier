@@ -164,7 +164,8 @@ public class DatabaseManager {
             "  y INT NOT NULL," +
             "  z INT NOT NULL," +
             "  loot_pool_id VARCHAR(64) NOT NULL," +
-            "  opened BOOLEAN DEFAULT FALSE" +
+            "  opened BOOLEAN DEFAULT FALSE," +
+            "  UNIQUE(dungeon_id, instance_id, world_name, x, y, z)" +
             ")",
 
             // 9. lf_completions
@@ -285,6 +286,13 @@ public class DatabaseManager {
                 } catch (SQLException e) {
                     plugin.getLogger().warning("Could not add last_free_ticket_at column: " + e.getMessage());
                 }
+            }
+
+            try {
+                stmt.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_lf_dungeon_chests_location " +
+                        "ON lf_dungeon_chests (dungeon_id, instance_id, world_name, x, y, z)");
+            } catch (SQLException e) {
+                plugin.getLogger().warning("Could not add dungeon chest location index: " + e.getMessage());
             }
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "Could not initialize database tables", e);

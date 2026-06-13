@@ -87,10 +87,7 @@ public class LootManager {
      */
     public CompletableFuture<Boolean> cloneChestsToInstance(String dungeonId, String instanceId, String worldName) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "INSERT INTO lf_dungeon_chests (chest_id, dungeon_id, instance_id, world_name, x, y, z, loot_pool_id, opened) " +
-                    "SELECT ?, ?, ?, ?, x, y, z, loot_pool_id, FALSE FROM lf_dungeon_chests WHERE dungeon_id = ? AND instance_id = 'TEMPLATE'";
-            try (Connection conn = plugin.getDatabaseManager().getConnection();
-                 PreparedStatement ps = conn.prepareStatement(sql)) {
+            try (Connection conn = plugin.getDatabaseManager().getConnection()) {
                 // For each template chest, we need a unique chest_id
                 // To keep it simple, if we copy them, we can select template chests first, then insert new ones
                 String selectSql = "SELECT x, y, z, loot_pool_id FROM lf_dungeon_chests WHERE dungeon_id = ? AND instance_id = 'TEMPLATE'";
@@ -280,26 +277,33 @@ public class LootManager {
      */
     public CompletableFuture<Boolean> tagChest(String dungeonId, String worldName, int x, int y, int z, String lootPoolId) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "INSERT INTO lf_dungeon_chests (chest_id, dungeon_id, instance_id, world_name, x, y, z, loot_pool_id, opened) " +
-                    "VALUES (?, ?, 'TEMPLATE', ?, ?, ?, ?, ?, FALSE) " +
-                    "ON DUPLICATE KEY UPDATE loot_pool_id = ?";
-            if (!plugin.getDatabaseManager().isMySQL()) {
-                sql = "INSERT OR REPLACE INTO lf_dungeon_chests (chest_id, dungeon_id, instance_id, world_name, x, y, z, loot_pool_id, opened) " +
-                        "VALUES (?, ?, 'TEMPLATE', ?, ?, ?, ?, ?, FALSE)";
-            }
-            try (Connection conn = plugin.getDatabaseManager().getConnection();
-                 PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, UUID.randomUUID().toString());
-                ps.setString(2, dungeonId);
-                ps.setString(3, worldName);
-                ps.setInt(4, x);
-                ps.setInt(5, y);
-                ps.setInt(6, z);
-                ps.setString(7, lootPoolId);
-                if (plugin.getDatabaseManager().isMySQL()) {
-                    ps.setString(8, lootPoolId);
+            try (Connection conn = plugin.getDatabaseManager().getConnection()) {
+                String updateSql = "UPDATE lf_dungeon_chests SET loot_pool_id = ?, opened = FALSE " +
+                        "WHERE dungeon_id = ? AND instance_id = 'TEMPLATE' AND world_name = ? AND x = ? AND y = ? AND z = ?";
+                try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                    ps.setString(1, lootPoolId);
+                    ps.setString(2, dungeonId);
+                    ps.setString(3, worldName);
+                    ps.setInt(4, x);
+                    ps.setInt(5, y);
+                    ps.setInt(6, z);
+                    if (ps.executeUpdate() > 0) {
+                        return true;
+                    }
                 }
-                ps.executeUpdate();
+
+                String insertSql = "INSERT INTO lf_dungeon_chests (chest_id, dungeon_id, instance_id, world_name, x, y, z, loot_pool_id, opened) " +
+                        "VALUES (?, ?, 'TEMPLATE', ?, ?, ?, ?, ?, FALSE)";
+                try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+                    ps.setString(1, UUID.randomUUID().toString());
+                    ps.setString(2, dungeonId);
+                    ps.setString(3, worldName);
+                    ps.setInt(4, x);
+                    ps.setInt(5, y);
+                    ps.setInt(6, z);
+                    ps.setString(7, lootPoolId);
+                    ps.executeUpdate();
+                }
                 return true;
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.SEVERE, "Error tagging chest", e);

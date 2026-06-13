@@ -120,44 +120,46 @@ public class WorldSpawnManager {
 
         // Load chunk asynchronously
         world.getChunkAtAsync(x >> 4, z >> 4).thenAccept(chunk -> {
-            int y = world.getHighestBlockYAt(x, z);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                int y = world.getHighestBlockYAt(x, z);
 
-            if (y <= world.getMinHeight()) {
-                findSafeLocationAsync(world, attempt + 1, dungeon);
-                return;
-            }
+                if (y <= world.getMinHeight()) {
+                    findSafeLocationAsync(world, attempt + 1, dungeon);
+                    return;
+                }
 
-            Block topBlock = world.getBlockAt(x, y, z);
-            Material topType = topBlock.getType();
+                Block topBlock = world.getBlockAt(x, y, z);
+                Material topType = topBlock.getType();
 
-            // Skip if the highest block is leaves, logs, wood, water, lava, or air (not in the open / on a tree)
-            if (topType.name().contains("LEAVES") ||
-                topType.name().contains("LOG") ||
-                topType.name().contains("WOOD") ||
-                topType == Material.WATER ||
-                topType == Material.LAVA ||
-                topType == Material.AIR) {
-                findSafeLocationAsync(world, attempt + 1, dungeon);
-                return;
-            }
+                // Skip if the highest block is leaves, logs, wood, water, lava, or air (not in the open / on a tree)
+                if (topType.name().contains("LEAVES") ||
+                    topType.name().contains("LOG") ||
+                    topType.name().contains("WOOD") ||
+                    topType == Material.WATER ||
+                    topType == Material.LAVA ||
+                    topType == Material.AIR) {
+                    findSafeLocationAsync(world, attempt + 1, dungeon);
+                    return;
+                }
 
-            Block groundBlock = world.getBlockAt(x, y - 1, z);
-            Material groundType = groundBlock.getType();
+                Block groundBlock = world.getBlockAt(x, y - 1, z);
+                Material groundType = groundBlock.getType();
 
-            // Ground must be solid and not liquid/leaves/wood/air
-            if (groundType.isSolid() && 
-                groundType != Material.WATER && 
-                groundType != Material.LAVA && 
-                groundType != Material.AIR &&
-                !groundType.name().contains("LEAVES") &&
-                !groundType.name().contains("LOG") &&
-                !groundType.name().contains("WOOD")) {
-                
-                // Spawn portal
-                spawnPortalAtLocation(world, x, y, z, dungeon);
-            } else {
-                findSafeLocationAsync(world, attempt + 1, dungeon);
-            }
+                // Ground must be solid and not liquid/leaves/wood/air
+                if (groundType.isSolid() &&
+                    groundType != Material.WATER &&
+                    groundType != Material.LAVA &&
+                    groundType != Material.AIR &&
+                    !groundType.name().contains("LEAVES") &&
+                    !groundType.name().contains("LOG") &&
+                    !groundType.name().contains("WOOD")) {
+
+                    // Spawn portal
+                    spawnPortalAtLocation(world, x, y, z, dungeon);
+                } else {
+                    findSafeLocationAsync(world, attempt + 1, dungeon);
+                }
+            });
         }).exceptionally(ex -> {
             plugin.getLogger().log(Level.SEVERE, "Error loading chunk asynchronously for portal spawn", ex);
             return null;
@@ -198,7 +200,9 @@ public class WorldSpawnManager {
                     activeWorldPortals.put(portalId, portal);
 
                     // Broadcast notifications
-                    notifyPlayersOfSpawn(portal, dungeon.getName());
+                    Bukkit.getScheduler().runTask(plugin, () -> notifyPlayersOfSpawn(portal, dungeon.getName()));
+                } else {
+                    Bukkit.getScheduler().runTask(plugin, () -> removePortalBlocks(world, cx, cy, cz));
                 }
             });
     }
@@ -302,14 +306,7 @@ public class WorldSpawnManager {
             int cy = (int) portal.y;
             int cz = (int) portal.z;
 
-            // Remove beacon, glass, and iron base
-            world.getBlockAt(cx, cy + 2, cz).setType(Material.AIR);
-            world.getBlockAt(cx, cy + 1, cz).setType(Material.AIR);
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dz = -1; dz <= 1; dz++) {
-                    world.getBlockAt(cx + dx, cy, cz + dz).setType(Material.AIR);
-                }
-            }
+            removePortalBlocks(world, cx, cy, cz);
 
             // Delete from database
             plugin.getPortalRepository().deletePortal(portalId).thenAccept(deleted -> {
@@ -321,6 +318,16 @@ public class WorldSpawnManager {
                 }
             });
         });
+    }
+
+    private void removePortalBlocks(World world, int cx, int cy, int cz) {
+        world.getBlockAt(cx, cy + 2, cz).setType(Material.AIR);
+        world.getBlockAt(cx, cy + 1, cz).setType(Material.AIR);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                world.getBlockAt(cx + dx, cy, cz + dz).setType(Material.AIR);
+            }
+        }
     }
 
     /**

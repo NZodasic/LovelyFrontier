@@ -61,15 +61,24 @@ public class MailManager {
                 return;
             }
 
-            // Perform item giving/depositing on the main thread (Rule R-001)
-            Bukkit.getScheduler().runTask(plugin, () -> {
+            List<CompletableFuture<MailRepository.DbMail>> claimFutures = new ArrayList<>();
+            for (MailRepository.DbMail mail : mailList) {
+                claimFutures.add(plugin.getMailRepository().markClaimed(mail.mailId)
+                        .thenApply(claimed -> claimed ? mail : null));
+            }
+
+            CompletableFuture.allOf(claimFutures.toArray(new CompletableFuture[0])).thenRun(() -> Bukkit.getScheduler().runTask(plugin, () -> {
                 if (!player.isOnline()) return;
 
                 double totalMoney = 0.0;
                 List<ItemStack> allItems = new ArrayList<>();
-                List<String> claimedMailIds = new ArrayList<>();
 
-                for (MailRepository.DbMail mail : mailList) {
+                for (CompletableFuture<MailRepository.DbMail> claimFuture : claimFutures) {
+                    MailRepository.DbMail mail = claimFuture.join();
+                    if (mail == null) {
+                        continue;
+                    }
+
                     totalMoney += mail.money;
                     if (mail.items != null) {
                         for (ItemStack item : mail.items) {
@@ -78,7 +87,6 @@ public class MailManager {
                             }
                         }
                     }
-                    claimedMailIds.add(mail.mailId);
                 }
 
                 // Economy payout
@@ -104,13 +112,8 @@ public class MailManager {
                     }
                 }
 
-                // Mark claimed in database asynchronously
-                for (String mailId : claimedMailIds) {
-                    plugin.getMailRepository().markClaimed(mailId);
-                }
-
                 player.sendMessage(MessageUtil.get("mail_claimed", "count", itemsCount));
-            });
+            }));
         });
     }
 }

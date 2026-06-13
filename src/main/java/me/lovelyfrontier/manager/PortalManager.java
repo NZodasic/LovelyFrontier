@@ -85,46 +85,48 @@ public class PortalManager {
      * The grid cache maps "dx,dz" offsets from the drop location to their Material.
      */
     public CompletableFuture<PortalType> detectPattern(Map<String, Material> blockCache) {
-        return CompletableFuture.supplyAsync(() -> {
-            for (PortalType type : portalTypes.values()) {
-                String[] pattern = type.getPattern();
-                if (pattern == null || pattern.length == 0) continue;
-                int rows = pattern.length;
-                int cols = pattern[0].length();
+        return CompletableFuture.supplyAsync(() -> detectPatternNow(blockCache));
+    }
 
-                int startX = - (rows - 1) / 2;
-                int startZ = - (cols - 1) / 2;
+    public PortalType detectPatternNow(Map<String, Material> blockCache) {
+        for (PortalType type : portalTypes.values()) {
+            String[] pattern = type.getPattern();
+            if (pattern == null || pattern.length == 0) continue;
+            int rows = pattern.length;
+            int cols = pattern[0].length();
 
-                boolean match = true;
-                for (int r = 0; r < rows; r++) {
-                    String rowStr = pattern[r];
-                    if (rowStr == null) {
+            int startX = - (rows - 1) / 2;
+            int startZ = - (cols - 1) / 2;
+
+            boolean match = true;
+            for (int r = 0; r < rows; r++) {
+                String rowStr = pattern[r];
+                if (rowStr == null) {
+                    match = false;
+                    break;
+                }
+                for (int c = 0; c < Math.min(rowStr.length(), cols); c++) {
+                    char ch = rowStr.charAt(c);
+                    Material required = type.getPatternKeys().get(ch);
+                    if (ch == ' ' || required == null) {
+                        continue;
+                    }
+
+                    int dx = startX + r;
+                    int dz = startZ + c;
+                    Material blockType = blockCache.get(dx + "," + dz);
+                    if (blockType != required) {
                         match = false;
                         break;
                     }
-                    for (int c = 0; c < Math.min(rowStr.length(), cols); c++) {
-                        char ch = rowStr.charAt(c);
-                        Material required = type.getPatternKeys().get(ch);
-                        if (ch == ' ' || required == null) {
-                            continue;
-                        }
-                        
-                        int dx = startX + r;
-                        int dz = startZ + c;
-                        Material blockType = blockCache.get(dx + "," + dz);
-                        if (blockType != required) {
-                            match = false;
-                            break;
-                        }
-                    }
-                    if (!match) break;
                 }
-
-                if (match) {
-                    return type;
-                }
+                if (!match) break;
             }
-            return null;
-        });
+
+            if (match) {
+                return type;
+            }
+        }
+        return null;
     }
 }

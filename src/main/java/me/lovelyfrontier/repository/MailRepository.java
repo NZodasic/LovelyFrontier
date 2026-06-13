@@ -101,12 +101,11 @@ public class MailRepository {
      */
     public CompletableFuture<Boolean> markClaimed(String mailId) {
         return CompletableFuture.supplyAsync(() -> {
-            String sql = "UPDATE lf_mail SET claimed = TRUE WHERE mail_id = ?";
+            String sql = "UPDATE lf_mail SET claimed = TRUE WHERE mail_id = ? AND claimed = FALSE";
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, mailId);
-                ps.executeUpdate();
-                return true;
+                return ps.executeUpdate() > 0;
             } catch (SQLException e) {
                 plugin.getLogger().severe("Error marking mail as claimed: " + e.getMessage());
                 return false;

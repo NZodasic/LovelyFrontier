@@ -44,15 +44,22 @@ public class ShopGUI {
             double totalPlaytime = playtime + sessionHours;
             double reqHours = plugin.getConfigManager().getAntiAbuseMinPlaytimeHours();
             if (totalPlaytime < reqHours) {
-                String requiredStr = plugin.getConfigManager().getAntiAbuseMinPlaytime();
-                String currentStr = me.lovelyfrontier.ConfigManager.formatPlaytime(totalPlaytime);
-                player.sendMessage(MessageUtil.get("not_enough_playtime", "hours", requiredStr, "required", requiredStr, "current", currentStr));
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (!player.isOnline()) return;
+                    String requiredStr = plugin.getConfigManager().getAntiAbuseMinPlaytime();
+                    String currentStr = me.lovelyfrontier.ConfigManager.formatPlaytime(totalPlaytime);
+                    player.sendMessage(MessageUtil.get("not_enough_playtime", "hours", requiredStr, "required", requiredStr, "current", currentStr));
+                });
                 return;
             }
 
             plugin.getPlayerProfileRepository().isFlagged(player.getUniqueId()).thenAccept(flagged -> {
                 if (flagged) {
-                    player.sendMessage(MessageUtil.get("alt_flagged"));
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (player.isOnline()) {
+                            player.sendMessage(MessageUtil.get("alt_flagged"));
+                        }
+                    });
                     return;
                 }
 
@@ -214,13 +221,19 @@ public class ShopGUI {
         economy.withdrawPlayer(player, price);
         plugin.getTicketRepository().addTicket(player.getUniqueId(), dungeonId, difficulty, 1)
                 .thenAccept(success -> {
-                    if (success) {
-                        player.sendMessage(MessageUtil.get("shop_success", "price", price));
-                    } else {
-                        // Refund money on DB failure
-                        economy.depositPlayer(player, price);
-                        player.sendMessage("§cKhông thể tạo vé. Đã hoàn tiền lại.");
-                    }
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (success) {
+                            if (player.isOnline()) {
+                                player.sendMessage(MessageUtil.get("shop_success", "price", price));
+                            }
+                        } else {
+                            // Refund money on DB failure
+                            economy.depositPlayer(player, price);
+                            if (player.isOnline()) {
+                                player.sendMessage("§cKhông thể tạo vé. Đã hoàn tiền lại.");
+                            }
+                        }
+                    });
                 });
     }
 }
