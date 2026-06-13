@@ -57,6 +57,14 @@ public class ChestProtectionListener implements Listener {
         return false;
     }
 
+    private boolean isLootContainer(Material type) {
+        return type == Material.CHEST 
+            || type == Material.TRAPPED_CHEST 
+            || type == Material.BARREL
+            || type == Material.SHULKER_BOX
+            || type.name().endsWith("_SHULKER_BOX");
+    }
+
     /**
      * Prevent breaking chests inside active dungeon instances, and prevent breaking world portal blocks.
      */
@@ -65,7 +73,7 @@ public class ChestProtectionListener implements Listener {
         Block block = event.getBlock();
 
         // 1. Prevent chest breaking in dungeon instances
-        if (block.getType() == Material.CHEST || block.getType() == Material.TRAPPED_CHEST) {
+        if (isLootContainer(block.getType())) {
             String worldName = block.getWorld().getName();
             if (worldName.startsWith("lf_instance_")) {
                 event.setCancelled(true);
@@ -100,7 +108,7 @@ public class ChestProtectionListener implements Listener {
         Block block = event.getClickedBlock();
         if (block == null) return;
 
-        if (block.getType() != Material.CHEST && block.getType() != Material.TRAPPED_CHEST) {
+        if (!isLootContainer(block.getType())) {
             return;
         }
 

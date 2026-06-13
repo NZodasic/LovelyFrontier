@@ -209,6 +209,10 @@ public class InstanceRepository {
                     inst.setState(InstanceState.valueOf(stateStr));
                     inst.setBossCleared(rs.getBoolean("boss_cleared"));
                     inst.setBossHpPercent(rs.getDouble("boss_hp_percent"));
+                    Timestamp createdAtTs = rs.getTimestamp("created_at");
+                    if (createdAtTs != null) {
+                        inst.setCreatedAt(createdAtTs.getTime());
+                    }
                     list.add(inst);
                 }
             } catch (SQLException e) {

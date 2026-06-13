@@ -368,9 +368,6 @@ public class AdminCommandManager implements CommandExecutor, TabCompleter {
         }
 
         Player finalTarget = targetPlayer;
-        if (!instance.getMembers().contains(finalTarget.getUniqueId())) {
-            instance.getMembers().add(finalTarget.getUniqueId());
-        }
 
         World world = Bukkit.getWorld(instance.getWorldName());
         if (world == null) {
@@ -388,6 +385,9 @@ public class AdminCommandManager implements CommandExecutor, TabCompleter {
         
         plugin.getInstanceRepository().addMember(instanceId, finalTarget.getUniqueId()).thenAccept(success -> {
             if (success) {
+                if (!instance.getMembers().contains(finalTarget.getUniqueId())) {
+                    instance.getMembers().add(finalTarget.getUniqueId());
+                }
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     finalTarget.teleport(spawnLoc);
                     finalTarget.sendMessage("§aBạn đã được bắt buộc tham gia phụ bản ID: " + instanceId);

@@ -11,7 +11,7 @@ public class DungeonInstance {
     private InstanceState state;
     private boolean bossCleared;
     private double bossHpPercent;
-    private final long createdAt;
+    private long createdAt;
 
     // Track active players and disconnected players with their disconnect timestamp
     private final Set<UUID> members = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -46,7 +46,8 @@ public class DungeonInstance {
     public synchronized double getBossHpPercent() { return bossHpPercent; }
     public synchronized void setBossHpPercent(double bossHpPercent) { this.bossHpPercent = bossHpPercent; }
 
-    public long getCreatedAt() { return createdAt; }
+    public synchronized long getCreatedAt() { return createdAt; }
+    public synchronized void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
 
     public Set<UUID> getMembers() { return members; }
     public Map<UUID, Long> getDisconnectedMembers() { return disconnectedMembers; }

@@ -172,13 +172,15 @@ public class InstanceManager {
                 // If boss was cleared, reward all members who completed
                 if (instance.isBossCleared()) {
                     double rewardAmount = 100.0; // Configurable or depending on difficulty
-                    for (UUID uuid : instance.getMembers()) {
-                        Player player = Bukkit.getPlayer(uuid);
-                        if (player != null && player.isOnline()) {
-                            economy.depositPlayer(player, rewardAmount);
-                            player.sendMessage(MessageUtil.get("shop_success", "price", rewardAmount)); // repurposing success msg
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        for (UUID uuid : instance.getMembers()) {
+                            Player player = Bukkit.getPlayer(uuid);
+                            if (player != null && player.isOnline()) {
+                                economy.depositPlayer(player, rewardAmount);
+                                player.sendMessage(MessageUtil.get("shop_success", "price", rewardAmount)); // repurposing success msg
+                            }
                         }
-                    }
+                    });
                 }
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "[LF] External Vault API error: " + e.getMessage(), e);

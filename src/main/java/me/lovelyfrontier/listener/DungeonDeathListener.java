@@ -36,6 +36,9 @@ public class DungeonDeathListener implements Listener {
         }
 
         Player player = (Player) event.getEntity();
+        if (player.getGameMode() == GameMode.SPECTATOR) {
+            return;
+        }
         DungeonInstance instance = plugin.getInstanceManager().getInstanceByPlayer(player.getUniqueId());
         
         // Only trigger this within active dungeon instances
@@ -96,9 +99,6 @@ public class DungeonDeathListener implements Listener {
                 // If they fly more than 150 blocks away from spawn, reset them
                 if (event.getTo().distanceSquared(spawnLoc) > 22500.0) {
                     event.setCancelled(true);
-                    
-                    Location teleportSpawn = new Location(world, config.getSpawnX(), config.getSpawnY(), config.getSpawnZ(), config.getSpawnYaw(), config.getSpawnPitch());
-                    player.teleport(teleportSpawn);
                     player.sendMessage("§c[LovelyFrontier] Bạn không thể di chuyển quá xa khu vực phụ bản.");
                 }
             }

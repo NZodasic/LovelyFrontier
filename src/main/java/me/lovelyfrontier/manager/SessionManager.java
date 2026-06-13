@@ -120,6 +120,8 @@ public class SessionManager {
             startDungeon(session.getSessionId()).thenAccept(res -> {
                 if (!res.isSuccess()) {
                     cancelSession(session.getSessionId(), "Solo creation failed: " + res.getMessage());
+                } else {
+                    activeSessions.remove(session.getSessionId()); // clean up on success too
                 }
             });
             return;

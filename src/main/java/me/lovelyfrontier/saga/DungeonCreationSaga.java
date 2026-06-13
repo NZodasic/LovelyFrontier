@@ -328,6 +328,7 @@ public class DungeonCreationSaga {
 
                 // Update active state after at least one player entered the instance.
                 instance.setState(InstanceState.ACTIVE);
+                instance.setCreatedAt(System.currentTimeMillis());
                 plugin.getInstanceRepository().updateState(instanceId, InstanceState.ACTIVE);
                 future.complete(true);
             } catch (Throwable e) {

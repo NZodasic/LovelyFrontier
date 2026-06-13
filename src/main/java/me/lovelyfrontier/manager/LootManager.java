@@ -178,14 +178,14 @@ public class LootManager {
                     for (PopulateTask task : tasks) {
                         Location loc = new Location(world, task.x, task.y, task.z);
                         BlockState state = loc.getBlock().getState();
-                        if (state instanceof Chest) {
-                            Chest chest = (Chest) state;
-                            Inventory inv = chest.getInventory();
+                        if (state instanceof org.bukkit.block.Container) {
+                            org.bukkit.block.Container container = (org.bukkit.block.Container) state;
+                            Inventory inv = container.getInventory();
                             inv.clear();
 
                             Random random = new Random();
                             for (ItemStack item : task.items) {
-                                // Place item in a random slot in the chest (typically 27 slots)
+                                // Place item in a random slot in the container (typically 27 slots)
                                 int slot = random.nextInt(inv.getSize());
                                 // If slot is occupied, find first empty slot
                                 if (inv.getItem(slot) != null) {
@@ -195,7 +195,7 @@ public class LootManager {
                                     inv.setItem(slot, item);
                                 }
                             }
-                            chest.update();
+                            container.update();
                         }
                     }
 
