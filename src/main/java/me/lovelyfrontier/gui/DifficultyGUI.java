@@ -48,10 +48,7 @@ public class DifficultyGUI {
             plugin.getDungeonManager().getAllDungeons().forEach(d -> dungeons.add(d.getId()));
             if (dungeons.isEmpty()) {
                 player.sendMessage("§cKhông có phụ bản khả dụng.");
-                if (portalId != null) {
-                    plugin.getInMemoryPortalLock().unlock(portalId);
-                    plugin.getPortalRepository().releaseLock(portalId);
-                }
+                releasePortalLock(plugin, portalId);
                 return;
             }
             dungeonId = dungeons.get(new Random().nextInt(dungeons.size()));
@@ -76,10 +73,7 @@ public class DifficultyGUI {
                     String requiredStr = plugin.getConfigManager().getAntiAbuseMinPlaytime();
                     String currentStr = me.lovelyfrontier.ConfigManager.formatPlaytime(totalPlaytime);
                     player.sendMessage(MessageUtil.get("not_enough_playtime", "hours", requiredStr, "required", requiredStr, "current", currentStr));
-                    if (portalId != null) {
-                        plugin.getInMemoryPortalLock().unlock(portalId);
-                        plugin.getPortalRepository().releaseLock(portalId);
-                    }
+                    releasePortalLock(plugin, portalId);
                 });
                 return;
             }
@@ -170,10 +164,7 @@ public class DifficultyGUI {
 
             if (!hasTicket) {
                 leader.sendMessage(MessageUtil.get("no_tickets"));
-                if (portalId != null) {
-                    plugin.getInMemoryPortalLock().unlock(portalId);
-                    plugin.getPortalRepository().releaseLock(portalId);
-                }
+                releasePortalLock(plugin, portalId);
                 return;
             }
 
@@ -200,5 +191,17 @@ public class DifficultyGUI {
             // Create entry session
             plugin.getSessionManager().createSession(dungeonId, difficulty, leader.getUniqueId(), partyMembers, portalId);
         });
+    }
+
+    private static void releasePortalLock(LovelyFrontierPlugin plugin, String portalId) {
+        if (portalId == null) {
+            return;
+        }
+
+        plugin.getInMemoryPortalLock().unlock(portalId);
+        if (plugin.getWorldSpawnManager() != null
+                && plugin.getWorldSpawnManager().getActiveWorldPortals().containsKey(portalId)) {
+            plugin.getPortalRepository().releaseLock(portalId);
+        }
     }
 }

@@ -77,7 +77,9 @@ public class DungeonCreationSaga {
                 if (!success) throw new RuntimeException("Step 8 (Mark Consumed) failed.");
                 return sagaLogRepo.logStep(sagaId, instanceId, "COMPLETE", "SUCCESS", null)
                         .thenApply(v -> {
-                            if (session.getPortalId() != null && plugin.getWorldSpawnManager() != null) {
+                            if (session.getPortalId() != null
+                                    && plugin.getWorldSpawnManager() != null
+                                    && plugin.getWorldSpawnManager().getActiveWorldPortals().containsKey(session.getPortalId())) {
                                 plugin.getWorldSpawnManager().despawnPortal(session.getPortalId(), false);
                             }
                             return instanceId;

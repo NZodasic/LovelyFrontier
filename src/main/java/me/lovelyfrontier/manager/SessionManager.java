@@ -64,10 +64,7 @@ public class SessionManager {
             if (leader != null && leader.isOnline()) {
                 leader.sendMessage(MessageUtil.get("solo_not_allowed"));
             }
-            if (portalId != null) {
-                plugin.getInMemoryPortalLock().unlock(portalId);
-                plugin.getPortalRepository().releaseLock(portalId);
-            }
+            releasePortalLock(portalId);
             return CompletableFuture.completedFuture(null);
         }
 
@@ -276,8 +273,19 @@ public class SessionManager {
 
     private void cleanupLocks(PlayerSession session) {
         if (session.getPortalId() != null) {
-            plugin.getInMemoryPortalLock().unlock(session.getPortalId());
-            plugin.getPortalRepository().releaseLock(session.getPortalId());
+            releasePortalLock(session.getPortalId());
+        }
+    }
+
+    private void releasePortalLock(String portalId) {
+        if (portalId == null) {
+            return;
+        }
+
+        plugin.getInMemoryPortalLock().unlock(portalId);
+        if (plugin.getWorldSpawnManager() != null
+                && plugin.getWorldSpawnManager().getActiveWorldPortals().containsKey(portalId)) {
+            plugin.getPortalRepository().releaseLock(portalId);
         }
     }
 

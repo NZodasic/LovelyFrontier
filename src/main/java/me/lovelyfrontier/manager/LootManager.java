@@ -137,8 +137,9 @@ public class LootManager {
 
         String difficulty = instance.getDifficulty();
         int partySize = instance.getMembers().size();
+        CompletableFuture<Boolean> result = new CompletableFuture<>();
 
-        return CompletableFuture.supplyAsync(() -> {
+        CompletableFuture.runAsync(() -> {
             String sql = "SELECT x, y, z, loot_pool_id FROM lf_dungeon_chests WHERE instance_id = ? AND opened = FALSE";
             List<PopulateTask> tasks = new ArrayList<>();
 
@@ -161,41 +162,56 @@ public class LootManager {
                 }
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.SEVERE, "Error reading chest positions for instance " + instanceId, e);
-                return false;
+                result.complete(false);
+                return;
             }
 
             // Schedule chest inventory updates on main thread
             Bukkit.getScheduler().runTask(plugin, () -> {
-                World world = Bukkit.getWorld(instance.getWorldName());
-                if (world == null) return;
-
-                for (PopulateTask task : tasks) {
-                    Location loc = new Location(world, task.x, task.y, task.z);
-                    BlockState state = loc.getBlock().getState();
-                    if (state instanceof Chest) {
-                        Chest chest = (Chest) state;
-                        Inventory inv = chest.getInventory();
-                        inv.clear();
-                        
-                        Random random = new Random();
-                        for (ItemStack item : task.items) {
-                            // Place item in a random slot in the chest (typically 27 slots)
-                            int slot = random.nextInt(inv.getSize());
-                            // If slot is occupied, find first empty slot
-                            if (inv.getItem(slot) != null) {
-                                slot = inv.firstEmpty();
-                            }
-                            if (slot != -1) {
-                                inv.setItem(slot, item);
-                            }
-                        }
-                        chest.update();
+                try {
+                    World world = Bukkit.getWorld(instance.getWorldName());
+                    if (world == null) {
+                        result.complete(false);
+                        return;
                     }
+
+                    for (PopulateTask task : tasks) {
+                        Location loc = new Location(world, task.x, task.y, task.z);
+                        BlockState state = loc.getBlock().getState();
+                        if (state instanceof Chest) {
+                            Chest chest = (Chest) state;
+                            Inventory inv = chest.getInventory();
+                            inv.clear();
+
+                            Random random = new Random();
+                            for (ItemStack item : task.items) {
+                                // Place item in a random slot in the chest (typically 27 slots)
+                                int slot = random.nextInt(inv.getSize());
+                                // If slot is occupied, find first empty slot
+                                if (inv.getItem(slot) != null) {
+                                    slot = inv.firstEmpty();
+                                }
+                                if (slot != -1) {
+                                    inv.setItem(slot, item);
+                                }
+                            }
+                            chest.update();
+                        }
+                    }
+
+                    result.complete(true);
+                } catch (Throwable t) {
+                    plugin.getLogger().log(Level.SEVERE, "Error filling chests for instance " + instanceId, t);
+                    result.complete(false);
                 }
             });
-
-            return true;
+        }).exceptionally(ex -> {
+            plugin.getLogger().log(Level.SEVERE, "Error preparing chest loot for instance " + instanceId, ex);
+            result.complete(false);
+            return null;
         });
+
+        return result;
     }
 
     /**

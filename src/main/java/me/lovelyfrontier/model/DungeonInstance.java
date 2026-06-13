@@ -19,6 +19,7 @@ public class DungeonInstance {
 
     // Keep track of who initiated kicks
     private final Set<UUID> kickInitiators = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Map<UUID, Double> bossBaseMaxHealth = new ConcurrentHashMap<>();
 
     public DungeonInstance(String instanceId, String dungeonId, String difficulty, String worldName) {
         this.instanceId = instanceId;
@@ -50,6 +51,7 @@ public class DungeonInstance {
     public Set<UUID> getMembers() { return members; }
     public Map<UUID, Long> getDisconnectedMembers() { return disconnectedMembers; }
     public Set<UUID> getKickInitiators() { return kickInitiators; }
+    public Map<UUID, Double> getBossBaseMaxHealth() { return bossBaseMaxHealth; }
 
     public synchronized boolean isPlayerInGracePeriod(UUID uuid) {
         return disconnectedMembers.containsKey(uuid);

@@ -2,6 +2,7 @@ package me.lovelyfrontier.listener;
 
 import me.lovelyfrontier.LovelyFrontierPlugin;
 import org.bukkit.Bukkit;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -61,7 +62,7 @@ public class PlayerConnectionListener implements Listener {
                 instance.getDisconnectedMembers().remove(uuid);
                 plugin.getInstanceRepository().updateMemberConnection(instance.getInstanceId(), uuid, true);
 
-                scaleBossHpOnReconnect(instance);
+                rescaleBossHp(instance);
 
                 org.bukkit.World world = Bukkit.getWorld(instance.getWorldName());
                 me.lovelyfrontier.model.DungeonConfig config = plugin.getDungeonManager().getDungeon(instance.getDungeonId());
@@ -105,8 +106,7 @@ public class PlayerConnectionListener implements Listener {
             instance.getDisconnectedMembers().put(uuid, System.currentTimeMillis());
             plugin.getInstanceRepository().updateMemberConnection(instance.getInstanceId(), uuid, false);
 
-            // Scale boss HP down
-            scaleBossHpOnDisconnect(instance);
+            rescaleBossHp(instance);
 
             int graceSeconds = plugin.getConfigManager().getInstanceDisconnectGrace();
             String instanceId = instance.getInstanceId();
@@ -141,13 +141,13 @@ public class PlayerConnectionListener implements Listener {
         }
     }
 
-    private void scaleBossHpOnDisconnect(me.lovelyfrontier.model.DungeonInstance instance) {
+    private void rescaleBossHp(me.lovelyfrontier.model.DungeonInstance instance) {
         int total = instance.getMembers().size();
         int disconnected = instance.getDisconnectedMembers().size();
         int connected = total - disconnected;
         if (connected <= 0 || total <= 0) return;
 
-        double factor = (double) connected / (connected + 1.0);
+        double targetFactor = (double) connected / total;
 
         try {
             if (Bukkit.getPluginManager().getPlugin("MythicMobs") != null) {
@@ -156,49 +156,35 @@ public class PlayerConnectionListener implements Listener {
                     for (org.bukkit.entity.Entity entity : world.getEntities()) {
                         if (entity instanceof org.bukkit.entity.LivingEntity living) {
                             if (io.lumine.mythic.bukkit.MythicBukkit.inst().getAPIHelper().isMythicMob(entity)) {
-                                double maxHealth = living.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getBaseValue();
-                                double newMax = maxHealth * factor;
-                                living.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).setBaseValue(newMax);
-                                double newHp = living.getHealth() * factor;
-                                living.setHealth(Math.min(newHp, newMax));
+                                rescaleBossHealth(instance, living, targetFactor);
                             }
                         }
                     }
                 }
             }
         } catch (Throwable t) {
-            plugin.getLogger().warning("[LF] Error scaling MythicMobs boss HP on disconnect: " + t.getMessage());
+            plugin.getLogger().warning("[LF] Error scaling MythicMobs boss HP: " + t.getMessage());
         }
     }
 
-    private void scaleBossHpOnReconnect(me.lovelyfrontier.model.DungeonInstance instance) {
-        int total = instance.getMembers().size();
-        int disconnected = instance.getDisconnectedMembers().size();
-        int connected = total - disconnected;
-        if (connected <= 1 || total <= 0) return;
-
-        double factor = (double) connected / (connected - 1.0);
-
-        try {
-            if (Bukkit.getPluginManager().getPlugin("MythicMobs") != null) {
-                org.bukkit.World world = Bukkit.getWorld(instance.getWorldName());
-                if (world != null) {
-                    for (org.bukkit.entity.Entity entity : world.getEntities()) {
-                        if (entity instanceof org.bukkit.entity.LivingEntity living) {
-                            if (io.lumine.mythic.bukkit.MythicBukkit.inst().getAPIHelper().isMythicMob(entity)) {
-                                double maxHealth = living.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getBaseValue();
-                                double newMax = maxHealth * factor;
-                                living.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).setBaseValue(newMax);
-                                double newHp = living.getHealth() * factor;
-                                living.setHealth(Math.min(newHp, newMax));
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (Throwable t) {
-            plugin.getLogger().warning("[LF] Error scaling MythicMobs boss HP on reconnect: " + t.getMessage());
+    private void rescaleBossHealth(me.lovelyfrontier.model.DungeonInstance instance,
+                                   org.bukkit.entity.LivingEntity living,
+                                   double targetFactor) {
+        AttributeInstance maxHealthAttribute = living.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH);
+        if (maxHealthAttribute == null) {
+            return;
         }
+
+        double currentMax = maxHealthAttribute.getBaseValue();
+        double baseMax = instance.getBossBaseMaxHealth().computeIfAbsent(living.getUniqueId(), ignored -> currentMax);
+        if (baseMax <= 0.0) {
+            return;
+        }
+
+        double currentPercent = currentMax > 0.0 ? living.getHealth() / currentMax : 1.0;
+        double newMax = Math.max(1.0, baseMax * targetFactor);
+        maxHealthAttribute.setBaseValue(newMax);
+        living.setHealth(Math.min(newMax, Math.max(0.0, newMax * currentPercent)));
     }
 
     @EventHandler

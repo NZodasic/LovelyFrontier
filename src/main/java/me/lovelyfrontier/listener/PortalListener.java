@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PortalListener implements Listener {
 
@@ -68,33 +69,35 @@ public class PortalListener implements Listener {
         }
 
         if (matchedWorldPortalId == null) {
-            openDifficultyGui(player, portalType, null, portalId);
+            openDifficultyGui(player, portalType, null, portalId, false);
             return;
         }
 
+        AtomicBoolean dbLockAcquired = new AtomicBoolean(false);
         plugin.getPortalRepository().tryAcquireLock(portalId, player.getUniqueId()).thenAccept(dbLocked -> {
+            dbLockAcquired.set(dbLocked);
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (!player.isOnline()) {
-                    releasePortalLock(portalId);
+                    releasePortalLock(portalId, dbLocked);
                     return;
                 }
 
                 if (!dbLocked) {
-                    releasePortalLock(portalId);
+                    releasePortalLock(portalId, false);
                     player.sendMessage(MessageUtil.get("portal_locked"));
                     return;
                 }
 
-                openDifficultyGui(player, portalType, matchedWorldPortalDungeonId, portalId);
+                openDifficultyGui(player, portalType, matchedWorldPortalDungeonId, portalId, true);
             });
         }).exceptionally(ex -> {
-            releasePortalLock(portalId);
+            releasePortalLock(portalId, dbLockAcquired.get());
             plugin.getLogger().log(Level.SEVERE, "[LF] Database lock failed", ex);
             return null;
         });
     }
 
-    private void openDifficultyGui(Player player, PortalType portalType, String dungeonId, String portalId) {
+    private void openDifficultyGui(Player player, PortalType portalType, String dungeonId, String portalId, boolean dbLocked) {
         if (dungeonId != null) {
             DifficultyGUI.openForDungeon(player, dungeonId, portalId);
         } else {
@@ -103,15 +106,17 @@ public class PortalListener implements Listener {
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (plugin.getSessionManager().findActiveSessionByPlayer(player.getUniqueId()) == null) {
-                releasePortalLock(portalId);
+                releasePortalLock(portalId, dbLocked);
             }
         }, 20L * 30L);
     }
 
-    private void releasePortalLock(String portalId) {
+    private void releasePortalLock(String portalId, boolean dbLocked) {
         if (portalId != null) {
             plugin.getInMemoryPortalLock().unlock(portalId);
-            plugin.getPortalRepository().releaseLock(portalId);
+            if (dbLocked) {
+                plugin.getPortalRepository().releaseLock(portalId);
+            }
         }
     }
 
@@ -171,6 +176,14 @@ public class PortalListener implements Listener {
             }
         }
 
+        if (isWorldPortalStructureBlock(clicked)) {
+            return;
+        }
+
+        if (clicked.getType() == Material.BEACON || clicked.getType() == Material.IRON_BLOCK) {
+            return;
+        }
+
         String method;
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             method = "RIGHT_CLICK";
@@ -181,6 +194,7 @@ public class PortalListener implements Listener {
         }
 
         org.bukkit.inventory.ItemStack handItem = player.getInventory().getItemInMainHand();
+        if (handItem == null) return;
         Material itemType = handItem.getType();
         if (itemType == Material.AIR) return;
 
@@ -245,6 +259,46 @@ public class PortalListener implements Listener {
         }
 
         return null;
+    }
+
+    private boolean isWorldPortalStructureBlock(Block clicked) {
+        if (plugin.getWorldSpawnManager() == null || clicked == null || clicked.getWorld() == null) {
+            return false;
+        }
+
+        if (clicked.getType() != Material.IRON_BLOCK
+                && clicked.getType() != Material.BEACON
+                && !clicked.getType().name().endsWith("_STAINED_GLASS")) {
+            return false;
+        }
+
+        for (PortalRepository.DbPortal portal : plugin.getWorldSpawnManager().getActiveWorldPortals().values()) {
+            if (!portal.worldName.equalsIgnoreCase(clicked.getWorld().getName())) {
+                continue;
+            }
+
+            int cx = (int) portal.x;
+            int cy = (int) portal.y;
+            int cz = (int) portal.z;
+            boolean clickedBase = clicked.getType() == Material.IRON_BLOCK
+                    && clicked.getY() == cy
+                    && Math.abs(clicked.getX() - cx) <= 1
+                    && Math.abs(clicked.getZ() - cz) <= 1;
+            boolean clickedBeacon = clicked.getType() == Material.BEACON
+                    && clicked.getX() == cx
+                    && clicked.getY() == cy + 1
+                    && clicked.getZ() == cz;
+            boolean clickedGlass = clicked.getType().name().endsWith("_STAINED_GLASS")
+                    && clicked.getX() == cx
+                    && clicked.getY() == cy + 2
+                    && clicked.getZ() == cz;
+
+            if (clickedBase || clickedBeacon || clickedGlass) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private boolean isPartyLeader(Player player) {
